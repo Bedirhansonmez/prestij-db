@@ -77,8 +77,6 @@ export default function PrestijDB() {
 
   useEffect(() => { if (girisYapildi) loadAll(); }, [girisYapildi]);
 
-  if (!girisYapildi) return <SifreEkrani onGiris={() => setGirisYapildi(true)} />;
-
   async function loadAll() {
     setLoading(true);
     setError(null);
@@ -187,6 +185,8 @@ export default function PrestijDB() {
     { key: "sinif", label: "Sınıf" },
     { key: "sehir", label: "Şehir" },
   ];
+
+  if (!girisYapildi) return <SifreEkrani onGiris={() => setGirisYapildi(true)} />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0d0d0d", color: "#e8e0d0", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
