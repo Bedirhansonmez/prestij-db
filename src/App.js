@@ -1,5 +1,46 @@
 import { useState, useMemo, useEffect } from "react";
 
+const SIFRE = "databaseofprestige";
+
+function SifreEkrani({ onGiris }) {
+  const [girilen, setGirilen] = useState("");
+  const [hata, setHata] = useState(false);
+
+  function kontrol() {
+    if (girilen === SIFRE) { onGiris(); }
+    else { setHata(true); setGirilen(""); setTimeout(() => setHata(false), 2000); }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0d0d0d", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif" }}>
+      <div style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: 8, padding: "48px 52px", width: "100%", maxWidth: 380, textAlign: "center", boxShadow: "0 30px 80px rgba(0,0,0,0.7)" }}>
+        <div style={{ fontSize: 11, letterSpacing: 4, color: "#c8a96e", textTransform: "uppercase", marginBottom: 10 }}>Prestij Akademi</div>
+        <div style={{ fontSize: 22, color: "#f0ebe0", marginBottom: 32, fontWeight: "normal" }}>Eğitmen Veritabanı</div>
+        <input
+          type="password"
+          placeholder="Şifre"
+          value={girilen}
+          onChange={e => setGirilen(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && kontrol()}
+          style={{
+            width: "100%", background: "#0d0d0d", border: `1px solid ${hata ? "#8b2020" : "#2a2a2a"}`,
+            borderRadius: 4, padding: "12px 14px", color: "#e8e0d0", fontSize: 14,
+            outline: "none", boxSizing: "border-box", fontFamily: "inherit", textAlign: "center",
+            transition: "border 0.2s",
+          }}
+        />
+        {hata && <div style={{ color: "#c06060", fontSize: 12, marginTop: 10 }}>Yanlış şifre</div>}
+        <button onClick={kontrol} style={{
+          marginTop: 16, width: "100%", background: "#c8a96e", border: "none", color: "#0d0d0d",
+          padding: "12px", borderRadius: 4, cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 1,
+        }}>
+          Giriş
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SUPABASE_URL = "https://rcqrdnbomywfbvgitqli.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcXJkbmJvbXl3ZmJ2Z2l0cWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzkzOTcsImV4cCI6MjA5NjI1NTM5N30.wWEuRCNtq2PNxppXTMgGiOHo_mSSvizaz84wigwsIXM";
 const HEADERS = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
@@ -20,6 +61,7 @@ async function apiFetch(path, options = {}) {
 }
 
 export default function PrestijDB() {
+  const [girisYapildi, setGirisYapildi] = useState(false);
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
@@ -33,7 +75,9 @@ export default function PrestijDB() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (girisYapildi) loadAll(); }, [girisYapildi]);
+
+  if (!girisYapildi) return <SifreEkrani onGiris={() => setGirisYapildi(true)} />;
 
   async function loadAll() {
     setLoading(true);
