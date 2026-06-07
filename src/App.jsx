@@ -430,3 +430,4 @@ const labelStyle = { display: "block", fontSize: 10, letterSpacing: 2, color: "#
 function btnStyle(bg, border, color = "#e8e0d0") {
   return { background: bg, border: `1px solid ${border}`, color, padding: "9px 18px", borderRadius: 4, cursor: "pointer", fontSize: 12, letterSpacing: 0.5, fontFamily: "inherit" };
 }
+ 
