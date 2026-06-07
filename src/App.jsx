@@ -1,17 +1,59 @@
 import { useState, useMemo, useEffect } from "react";
 
+const SIFRE = "databaseofprestige";
+
+function SifreEkrani({ onGiris }) {
+  const [girilen, setGirilen] = useState("");
+  const [hata, setHata] = useState(false);
+
+  function kontrol() {
+    if (girilen === SIFRE) { onGiris(); }
+    else { setHata(true); setGirilen(""); setTimeout(() => setHata(false), 2000); }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0d0d0d", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Georgia', serif" }}>
+      <div style={{ background: "#141414", border: "1px solid #2a2a2a", borderRadius: 8, padding: "48px 52px", width: "100%", maxWidth: 380, textAlign: "center", boxShadow: "0 30px 80px rgba(0,0,0,0.7)" }}>
+        <div style={{ fontSize: 11, letterSpacing: 4, color: "#c8a96e", textTransform: "uppercase", marginBottom: 10 }}>Prestij Akademi</div>
+        <div style={{ fontSize: 22, color: "#f0ebe0", marginBottom: 32, fontWeight: "normal" }}>Eğitmen Veritabanı</div>
+        <input
+          type="password"
+          placeholder="Şifre"
+          value={girilen}
+          onChange={e => setGirilen(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && kontrol()}
+          style={{
+            width: "100%", background: "#0d0d0d", border: `1px solid ${hata ? "#8b2020" : "#2a2a2a"}`,
+            borderRadius: 4, padding: "12px 14px", color: "#e8e0d0", fontSize: 14,
+            outline: "none", boxSizing: "border-box", fontFamily: "inherit", textAlign: "center",
+            transition: "border 0.2s",
+          }}
+        />
+        {hata && <div style={{ color: "#c06060", fontSize: 12, marginTop: 10 }}>Yanlış şifre</div>}
+        <button onClick={kontrol} style={{
+          marginTop: 16, width: "100%", background: "#c8a96e", border: "none", color: "#0d0d0d",
+          padding: "12px", borderRadius: 4, cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 1,
+        }}>
+          Giriş
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SUPABASE_URL = "https://rcqrdnbomywfbvgitqli.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJjcXJkbmJvbXl3ZmJ2Z2l0cWxpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NzkzOTcsImV4cCI6MjA5NjI1NTM5N30.wWEuRCNtq2PNxppXTMgGiOHo_mSSvizaz84wigwsIXM";
 const HEADERS = { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
 const API = `${SUPABASE_URL}/rest/v1/egitmenler`;
 
 const SINIF_OPTIONS = ["Hazırlık", "1. Sınıf", "2. Sınıf", "3. Sınıf", "4. Sınıf", "Mezun"];
-const SEHIR_OPTIONS = ["Diyarbakır", "İstanbul"];
+const SEHIR_OPTIONS = ["Ankara", "Diyarbakır", "İstanbul"];
 const SEHIR_COLORS = {
   "Diyarbakır": { bg: "#1a1500", border: "#4a3a00", text: "#c8a96e" },
   "İstanbul":   { bg: "#0a1520", border: "#1a3a55", text: "#6eafc8" },
+  "Ankara":     { bg: "#0f1a0f", border: "#1a3a1a", text: "#6ec88a" },
 };
-const EMPTY_FORM = { isim_soyisim: "", siralama: "", universite: "", bolum: "", telefon: "", mail: "", sinif: "", sehir: "" };
+const EMPTY_FORM = { isim_soyisim: "", siralama: "", universite: "", bolum: "", telefon: "", mail: "", sinif: "", sehir: "", foto_url: "" };
 
 async function apiFetch(path, options = {}) {
   const res = await fetch(API + path, { headers: HEADERS, ...options });
@@ -20,6 +62,7 @@ async function apiFetch(path, options = {}) {
 }
 
 export default function PrestijDB() {
+  const [girisYapildi, setGirisYapildi] = useState(false);
   const [records, setRecords] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
@@ -32,8 +75,9 @@ export default function PrestijDB() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [fotoYukleniyor, setFotoYukleniyor] = useState(false);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (girisYapildi) loadAll(); }, [girisYapildi]);
 
   async function loadAll() {
     setLoading(true);
@@ -66,11 +110,35 @@ export default function PrestijDB() {
 
   const counts = useMemo(() => ({
     total: records.length,
+    ankara: records.filter(r => r.sehir === "Ankara").length,
     diyarbakir: records.filter(r => r.sehir === "Diyarbakır").length,
     istanbul: records.filter(r => r.sehir === "İstanbul").length,
   }), [records]);
 
   function handleChange(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
+
+  async function handleFotoUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    setFotoYukleniyor(true);
+    setError(null);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${Date.now()}.${ext}`;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/fotograflar/${fileName}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}`, "Content-Type": file.type },
+        body: file,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = `${SUPABASE_URL}/storage/v1/object/public/fotograflar/${fileName}`;
+      setForm(f => ({ ...f, foto_url: url }));
+    } catch (e) {
+      setError("Fotoğraf yüklenemedi: " + e.message);
+    } finally {
+      setFotoYukleniyor(false);
+    }
+  }
 
   async function handleSubmit() {
     if (!form.isim_soyisim.trim()) return;
@@ -134,6 +202,7 @@ export default function PrestijDB() {
   };
 
   const cols = [
+    { key: "foto_url", label: "" },
     { key: "isim_soyisim", label: "İsim Soyisim" },
     { key: "siralama", label: "Sıralama" },
     { key: "universite", label: "Üniversite" },
@@ -143,6 +212,8 @@ export default function PrestijDB() {
     { key: "sinif", label: "Sınıf" },
     { key: "sehir", label: "Şehir" },
   ];
+
+  if (!girisYapildi) return <SifreEkrani onGiris={() => setGirisYapildi(true)} />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#0d0d0d", color: "#e8e0d0", fontFamily: "'Georgia', 'Times New Roman', serif" }}>
@@ -163,15 +234,16 @@ export default function PrestijDB() {
       {/* Stats / Filtre */}
       <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #1a1a1a" }}>
         {[
-          { label: "Toplam", count: counts.total, key: "" },
+          { label: "Toplam", count: counts.total, key: "", accent: "#e8e0d0" },
+          { label: "Ankara", count: counts.ankara, key: "Ankara", accent: "#6ec88a" },
           { label: "Diyarbakır", count: counts.diyarbakir, key: "Diyarbakır", accent: "#c8a96e" },
           { label: "İstanbul", count: counts.istanbul, key: "İstanbul", accent: "#6eafc8" },
         ].map(s => (
           <button key={s.key} onClick={() => setFilterSehir(f => f === s.key ? "" : s.key)} style={{
             background: filterSehir === s.key ? "#1a1a1a" : "transparent",
             border: "none", borderRight: "1px solid #1a1a1a",
-            borderBottom: filterSehir === s.key ? `2px solid ${s.accent || "#e8e0d0"}` : "2px solid transparent",
-            color: filterSehir === s.key ? (s.accent || "#f0ebe0") : "#555",
+            borderBottom: filterSehir === s.key ? `2px solid ${s.accent}` : "2px solid transparent",
+            color: filterSehir === s.key ? s.accent : "#555",
             padding: "14px 28px", cursor: "pointer", fontSize: 12, letterSpacing: 1, fontFamily: "inherit", transition: "all 0.15s",
           }}>
             {s.label} <span style={{ marginLeft: 8, opacity: 0.7 }}>{s.count}</span>
@@ -224,7 +296,11 @@ export default function PrestijDB() {
                 >
                   {cols.map(c => (
                     <td key={c.key} style={{ padding: "12px 14px", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {c.key === "siralama" && rec[c.key] ? (
+                      {c.key === "foto_url" ? (
+                        rec[c.key]
+                          ? <img src={rec[c.key]} alt="" style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover", border: "1px solid #2a2a2a" }} />
+                          : <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#1a1a1a", border: "1px solid #2a2a2a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, color: "#333" }}>?</div>
+                      ) : c.key === "siralama" && rec[c.key] ? (
                         <span style={{ color: "#c8a96e", fontVariantNumeric: "tabular-nums" }}>{Number(rec[c.key]).toLocaleString("tr-TR")}</span>
                       ) : c.key === "sehir" && rec[c.key] ? (
                         <span style={{
@@ -307,6 +383,16 @@ export default function PrestijDB() {
                   <option value="">Seç</option>
                   {SINIF_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Fotoğraf</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  {form.foto_url && <img src={form.foto_url} alt="" style={{ width: 48, height: 48, borderRadius: "50%", objectFit: "cover", border: "1px solid #2a2a2a" }} />}
+                  <label style={{ cursor: "pointer", background: "#0d0d0d", border: "1px solid #2a2a2a", borderRadius: 4, padding: "10px 16px", fontSize: 13, color: fotoYukleniyor ? "#555" : "#aaa", fontFamily: "inherit" }}>
+                    {fotoYukleniyor ? "Yükleniyor…" : form.foto_url ? "Değiştir" : "Fotoğraf Seç"}
+                    <input type="file" accept="image/*" onChange={handleFotoUpload} style={{ display: "none" }} disabled={fotoYukleniyor} />
+                  </label>
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 28, justifyContent: "flex-end" }}>
